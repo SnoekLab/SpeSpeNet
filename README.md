@@ -2,7 +2,6 @@
 title: "README SpeSpeNet"
 author: "Abraham Lucas van Eijnatten"
 date: "2024-07-17"
-output: html_document
 ---
 
 ## Abstract
@@ -21,7 +20,7 @@ Example_data: Map containing three data sets that are in SpeSpeNet compatible fo
 
 Figure_scripts: Map with the scripts to make the figures of the SpeSpeNet paper. These scripts are a linearized version of the SpeSpeNet source code.
 
-Manual.docx: In depth description of how to use SpeSpeNet.  
+SpeSpeNet_manual.docx: In depth description of how to use SpeSpeNet.  
 
 ## Remarks
 
