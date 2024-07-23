@@ -2,21 +2,9 @@
 
 
 # Normalization function --------------------------------------------------
-normal <- function(data, normalization) {
-  if(normalization == "No - raw read counts") {
-    normal_otu <- sweep(data, 2, colSums(data), FUN="/") * 100
-    return(normal_otu)
-  }
-  
-  if(normalization == "Yes - fractions (0 to 1)") {
-    t1 <- data
-    t2 <- t1 * 100
-    return(t2)
-  }
-  
-  if(normalization == "Yes - percentages (0 to 100%)") {
-    return(data)
-  }
+normal <- function(data) {
+  normal_otu <- sweep(data, 2, colSums(data), FUN="/") * 100
+  return(normal_otu)
 }
 
 # Genera selection based on thresholds ------------------------------------
@@ -166,6 +154,10 @@ get.tax <- function(tax, rank, graph, matrix, plot.selection = "tax") {
 # Convert network to tidy graph object ------------------------------------
 tidy.net <- function(net, matrix, clust, env, tax) {
   req(!(nrow(matrix)!=length(env))|is.null(env))
+  #req(length(tax)==nrow(matrix))
+  if(!is.null(tax)){
+    tax <- factor(tax, levels = c(sort(unique(tax[!(tax%in%c("other","Other","unknown","Unknown"))])),"other","Other","unknown","Unknown"))
+  }
   tidy.net <- net %>%
     as_tbl_graph()
   # Node size is proportional to the square root of the abundance of the corresponding OTU
@@ -488,5 +480,4 @@ cor.plot <- function(graph, parameter, option, Correlation,clus,env,env.var,env.
     }
 }
 
-# Text for tooltip
-popupText <- h6("If your OTU table stores raw read counts, then choose \"No.\" If read counts are normalized to relative abundances, then select whether abundance values are percentages (0 to 100%) or fractions (0 to 1)")
+
