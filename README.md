@@ -28,4 +28,4 @@ Currently it is very difficult to obtain a workable installation of R to run Spe
 
 ## Contact
 
-For issues, requests or discussions please open an issue on the github or contact [a.l.vaneijnatten\@uu.nl](mailto:a.l.vaneijnatten@uu.nl)
+For issues, requests or discussions please open an issue on the github or contact [a.l.vaneijnatten\@uu.nl](mailto:a.l.vaneijnatten@uu.nl) or [l.b.snoek\@uu.nl](mailto:l.b.snoek@uu.nl)
