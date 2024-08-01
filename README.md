@@ -4,13 +4,21 @@ author: "Abraham Lucas van Eijnatten"
 date: "2024-07-17"
 ---
 
+
+### SpeSpeNet: An interactive and user-friendly tool to create and explore microbial correlation networks
+A.L. van Eijnatten, L. van Zon, E. Manousou, M. Bikineeva, J. Wubs, W. van der Putten, E. Morriën, B.E. Dutilh, B.L. Snoek
+
+Find the paper presenting SpeSpeNet here: [https://www.biorxiv.org/content/10.1101/2024.07.17.603889v1]
+
+
 ## Abstract
 
 Correlation networks are commonly used to explore microbiome data. In these networks, nodes are taxa and edges represent correlations between their abundance patterns across samples. As clusters of correlating taxa (co-abundance clusters) often  indicate a shared response to environmental drivers, network visualization contributes to system understanding. Currently, most tools for creating and visualizing co-abundance networks from microbiome data either require the researcher to have coding skills, or they are not user-friendly, with high time expenditure and limited customizability. Furthermore, existing tools lack focus on the relationship between environmental drivers and the structure of the microbiome, even though many edges in correlation networks can be understood through a shared relationship of two taxa with the environment. For these reasons we developed SpeSpeNet (Species-Species Network, https://tbb.bio.uu.nl/SpeSpeNet), a practical and user-friendly R-shiny tool to construct and visualize correlation networks from taxonomic abundance  tables. The details of data preprocessing, network construction, and visualization are automated, require no programming ability for the web version, and are highly customizable, including associations with user-provided environmental data.
 
 Find the SpeSpeNet tool here: https://tbb.bio.uu.nl/SpeSpeNet. 
 
-Find the paper presenting SpeSpeNet here: [https://www.biorxiv.org/content/10.1101/2024.07.17.603889v1]
+
+
 
 
 ## Description files on this github:
