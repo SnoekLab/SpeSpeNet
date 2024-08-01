@@ -10,7 +10,8 @@ Correlation networks are commonly used to explore microbiome data. In these netw
 
 Find the SpeSpeNet tool here: https://tbb.bio.uu.nl/SpeSpeNet. 
 
-Find the paper presenting SpeSpeNet here:
+Find the paper presenting SpeSpeNet here: [https://www.biorxiv.org/content/10.1101/2024.07.17.603889v1]
+
 
 ## Description files on this github:
 
