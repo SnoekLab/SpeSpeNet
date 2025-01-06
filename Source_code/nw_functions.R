@@ -2,28 +2,46 @@
 
 
 # Normalization function --------------------------------------------------
-normal <- function(data) {
-  normal_otu <- sweep(data, 2, colSums(data), FUN="/") * 100
-  return(normal_otu)
-}
-
-# Genera selection based on thresholds ------------------------------------
-select.genera <- function(relab.tab, mean.thr = 0, max.thr = 0, occ.thr = 0,env.mat,sub.var,sub.cat) {
-    if(sub.var!= "Full network"&sub.cat!=""){
-      if(sub.cat%in%unique(get(sub.var,env.mat))){
-        use_relab <- relab.tab[,which(get(sub.var,env.mat)==sub.cat)]
-      } else{
-        use_relab <- relab.tab
-      }
+normal <- function(otu.table,type.norm,mean.thr = 0, max.thr = 0, occ.thr = 0,env.mat,sub.var,sub.cat) {
+  ### Get the right samples
+  print(sub.var)
+  print(sub.cat)
+  if(sub.var!= "Full network"&sub.cat!=""){
+    if(sub.cat%in%unique(get(sub.var,env.mat))){
+      use_table <- otu.table[,which(get(sub.var,env.mat)==sub.cat)]
+      print("hallo")
     } else{
-      use_relab <- relab.tab
+      use_table <- otu.table
     }
-  mmo <- NULL
-  mmo$mean <- apply(use_relab, 1, mean, na.rm = T)
-  mmo$max <- apply(use_relab, 1, max, na.rm = T)
-  mmo$occ <- apply(use_relab > 0, 1, sum, na.rm = T)
-  use_relab <- use_relab[mmo$mean >= mean.thr & mmo$max >= max.thr & mmo$occ >= occ.thr,]
-    return(use_relab)
+  } else{
+    use_table <- otu.table
+  }
+
+  ### Filter data
+    use_relab <- sweep(use_table, 2, colSums(use_table), FUN="/") * 100
+    mmo <- NULL
+    mmo$mean <- apply(use_relab, 1, mean, na.rm = T)
+    mmo$max <- apply(use_relab, 1, max, na.rm = T)
+    mmo$occ <- apply(use_relab > 0, 1, sum, na.rm = T)
+    if(type.norm =="CLR"){
+      use_table <- use_table[mmo$mean >= mean.thr & mmo$max >= max.thr & mmo$occ >= occ.thr,]
+      set.seed(333)
+      use_table[use_table==0] <- runif(sum(use_table==0),0.1,1)
+      row.name <- rownames(use_table)
+      normal_otu <- apply(use_table,2,function(x) log(x/mean(x)))
+      rownames(normal_otu) <- row.name
+
+    } else if(type.norm == "TSS"){
+      normal_otu <- use_relab[mmo$mean >= mean.thr & mmo$max >= max.thr & mmo$occ >= occ.thr,]
+      set.seed(333)
+      normal_otu[normal_otu==0] <- runif(sum(normal_otu==0),0.1*min(normal_otu),min(normal_otu))
+      normal_otu <- sweep(normal_otu, 2, colSums(normal_otu), FUN="/") * 100
+    } else if(type.norm == "SparCC"){
+    normal_otu <- use_table[mmo$mean >= mean.thr & mmo$max >= max.thr & mmo$occ >= occ.thr,]
+    set.seed(333)
+    normal_otu[normal_otu==0] <- runif(sum(normal_otu==0),0.1,1)
+    }
+  return(normal_otu)
 }
 
 select.tax <- function(tax.tab, mean.thr = 0, max.thr = 0, occ.thr = 0, mmo = mmo,relab.tab,env.mat,sub.var,sub.cat) {
@@ -36,12 +54,41 @@ select.tax <- function(tax.tab, mean.thr = 0, max.thr = 0, occ.thr = 0, mmo = mm
   } else{
     use_relab <- relab.tab
   }
-    mmo <- NULL
+  use_relab <- sweep(use_relab, 2, colSums(use_relab), FUN="/") * 100
+  mmo <- NULL
   mmo$mean <- apply(use_relab, 1, mean, na.rm = T)
   mmo$max <- apply(use_relab, 1, max, na.rm = T)
   mmo$occ <- apply(use_relab > 0, 1, sum, na.rm = T)
   use_tax <- tax.tab[mmo$mean >= mean.thr & mmo$max >= max.thr & mmo$occ >= occ.thr,]
   return(use_tax)
+}
+
+get.relabu <- function(otu.table, mean.thr = 0, max.thr = 0, occ.thr = 0,env.mat,sub.var,sub.cat) {
+  if(sub.var != "Full network"&sub.cat!=""){
+    if(sub.cat%in%unique(get(sub.var,env.mat))){
+      use_relab <- otu.table[,which(get(sub.var,env.mat)==sub.cat)]
+    } else{
+      use_relab <- otu.table
+    }
+  } else{
+    use_relab <- otu.table
+  }
+  use_relab <- sweep(use_relab, 2, colSums(use_relab), FUN="/") * 100
+  mmo <- NULL
+  mmo$mean <- apply(use_relab, 1, mean, na.rm = T)
+  mmo$max <- apply(use_relab, 1, max, na.rm = T)
+  mmo$occ <- apply(use_relab > 0, 1, sum, na.rm = T)
+  use_otu <- use_relab[mmo$mean >= mean.thr & mmo$max >= max.thr & mmo$occ >= occ.thr,]
+  set.seed(333)
+  use_otu[use_otu==0] <- runif(sum(use_otu==0),0.1*min(use_otu),min(use_otu))
+  use_otu <- sweep(use_otu, 2, colSums(use_otu), FUN="/") * 100
+  return(use_otu)
+}
+
+select.rm <- function(relabu){
+  rm.otu <- sqrt(rowMeans(relabu)) %>%
+    rescale(to = c(1,12))
+  return(rm.otu)
 }
 
 select.env <- function(env.tab,sub.var,sub.cat) {
@@ -79,7 +126,14 @@ env.plot.type <- function(env.var,env){
 
 # Correlation matrix based on abundance data ------------------------------
 create.cor <- function(relab, type) {
-  cor_mat <- cor(base::t(relab), method = type)
+  if(type%in%c("Spearman","Kendall","Pearson")){
+    cor_mat <- cor(base::t(relab), method = tolower(type))
+  } else if(type == "SparCC"){
+    cor_mat <- t(sparcc(t(relab)))[[2]]
+    rownames(cor_mat) <- rownames(relab)
+    colnames(cor_mat) <- rownames(relab)
+  }
+  
   diag(cor_mat) <- NA
   return(cor_mat)
 }
@@ -103,25 +157,30 @@ get.km <- function(method, matrix, no.of.clust = 3, nstart = 25, graph, use.seed
 }
 
 # Calculate environmental parameter correlation ---------------------------
-get.env.cor <- function(meta, use.env, matrix, type = "pairwise", plot.selection){
+get.env.cor <- function(meta, use.env, matrix, type = "pairwise", plot.selection,net.norm){
   req(nrow(meta)==ncol(matrix)&use.env!="")
   if (plot.selection == "Environmental parameter"&use.env!="Not applicable"&use.env!="No numeric variables"){
-    if(is.numeric(meta[[use.env]])){
-      env.cor <- as.numeric(cor(meta[[use.env]],base::t(matrix), use = type,method = "pearson"))
+    if(net.norm == "SparCC"){
+      row.name <- rownames(matrix)
+      normal_otu <- apply(matrix,2,function(x) log(x/mean(x)))
+      rownames(matrix) <- row.name
     }
-    if(is.character(meta[[use.env]])|is.factor(meta[[use.env]])){
-      relab.long <- melt(data.frame(matrix,otu = rownames(matrix)),id.vars = "otu")
-      head(relab.long)
-      relab.long <- relab.long %>% mutate(sub_cat = meta[[use.env]][match(relab.long$variable,rownames(meta))])
-      relab.mean <- aggregate(relab.long$value,by = list(relab.long$otu,relab.long$sub_cat),mean)
-      colnames(relab.mean) <- c("otu","sub_cat","value")
-      max.cat <- sapply(unique(relab.mean$otu),function(x) relab.mean[relab.mean$otu==x,"sub_cat"][which.max(relab.mean[relab.mean$otu==x,"value"])])
-      env.cor <- max.cat[match(rownames(matrix),names(max.cat))]
+      if(is.numeric(meta[[use.env]])){
+        env.cor <- as.numeric(cor(meta[[use.env]],base::t(matrix), use = type,method = "pearson"))
+      }
+      if(is.character(meta[[use.env]])|is.factor(meta[[use.env]])){
+        relab.long <- melt(data.frame(matrix,otu = rownames(matrix)),id.vars = "otu")
+        head(relab.long)
+        relab.long <- relab.long %>% mutate(sub_cat = meta[[use.env]][match(relab.long$variable,rownames(meta))])
+        relab.mean <- aggregate(relab.long$value,by = list(relab.long$otu,relab.long$sub_cat),mean)
+        colnames(relab.mean) <- c("otu","sub_cat","value")
+        max.cat <- sapply(unique(relab.mean$otu),function(x) relab.mean[relab.mean$otu==x,"sub_cat"][which.max(relab.mean[relab.mean$otu==x,"value"])])
+        env.cor <- max.cat[match(rownames(matrix),names(max.cat))]
+      }
+      return(env.cor)
+    }else{
+      return(NULL)
     }
-    return(env.cor)
-  }else{
-    return(NULL)
-  }
 }
 
 # Adjust taxonomy for plotting --------------------------------------------
@@ -152,17 +211,15 @@ get.tax <- function(tax, rank, graph, matrix, plot.selection = "tax") {
 }
 
 # Convert network to tidy graph object ------------------------------------
-tidy.net <- function(net, matrix, clust, env, tax) {
+tidy.net <- function(net, matrix, clust, env, tax,rm_otu) {
   req(!(nrow(matrix)!=length(env))|is.null(env))
-  #req(length(tax)==nrow(matrix))
   if(!is.null(tax)){
     tax <- factor(tax, levels = c(sort(unique(tax[!(tax%in%c("other","Other","unknown","Unknown"))])),"other","Other","unknown","Unknown"))
   }
   tidy.net <- net %>%
     as_tbl_graph()
   # Node size is proportional to the square root of the abundance of the corresponding OTU
-  meanSize <- sqrt(rowMeans(matrix)) %>%
-    rescale(to = c(1,12))
+  meanSize <- rm_otu 
   if(!is.null(env)){
     tidy.net %<>%
       activate(nodes) %>%
@@ -191,8 +248,8 @@ themes <- list("Dark" = dark_theme_grey(),
 # Network plot function ---------------------------------------------------
 plot.gg <- function(tidy.net, plot.selection, edge.width, edge.alpha, edge.strength,
                     seed, parameter, rank, theme, line.colour,isolated,clus,taxa,env.type,env,cor.env) {
+  
   tidy.net
-
   
   lineCol <- list("Dark" = "white",
                   "Classic" = "black",
@@ -301,6 +358,7 @@ plot.gg <- function(tidy.net, plot.selection, edge.width, edge.alpha, edge.stren
                       options= list(opts_hover_inv(css = "opacity:0.6;"),opts_hover(css = ''),opts_sizing(rescale = TRUE),opts_toolbar(hidden = c("lasso_select","lasso_deselect"))))
     return(plot.gi)
   }
+
 }
 
 # Create taxonomy barplot -------------------------------------------------

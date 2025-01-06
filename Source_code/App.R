@@ -27,7 +27,14 @@ tabsetPanel(
   tabPanel("Network",
            sidebarLayout(
              sidebarPanel(width = 3,
-                          selectInput("indata", "Select input type", choices = c(".txt file", "Phyloseq", "MGnify","Example data")),
+                          selectInput("indata", "Select input type", choices = c("Phyloseq",".txt file", "MGnify","Example data")),
+                          selectInput("normalize_custom",label = tags$span("Input data format"),choices = c("Read counts","Relative abundances")),
+                          conditionalPanel(
+                            condition = "input.indata == 'Phyloseq'",
+                            selectInput("agglomerate.phylo",label = "Aggregate OTUs/ASVs at genus level?", choices = c("Yes", "No")),
+                            fileInput("phy.file", "Submit Phyloseq .rds file", buttonLabel = "Browse...")
+                          ),
+
                           conditionalPanel(
                             condition = "input.indata == '.txt file'",
                             selectInput("agglomerate.custom",label = "Aggregate OTUs/ASVs at genus level?", choices = c("Yes", "No")),
@@ -39,19 +46,22 @@ tabsetPanel(
                                       accept = c("text/csv","text/comma-separated-values,text/plain",".csv",".txt"), buttonLabel = "Browse..."),
                           ),
                           conditionalPanel(
-                            condition = "input.indata == 'Phyloseq'",
-                            selectInput("agglomerate.phylo",label = "Aggregate OTUs/ASVs at genus level?", choices = c("Yes", "No")),
-                            fileInput("phy.file", "Submit Phyloseq .rds file", buttonLabel = "Browse...")
-                          ),
-                          conditionalPanel(
                             condition = "input.indata == 'Example data'",
-                            selectInput("example.data",
+                            selectInput("exampledata",
                                         label = tags$span(
                                           "Select dataset?"),
                                         choices = c("Hauptfeld et al (ground water treatment plant)", "Deutschmann et al (Marine surface water)", "Brenzinger et al (soil amendments)")
                             ),
-                            selectInput("agglomerate.phylo",label = "Aggregate OTUs/ASVs at genus level?", choices = c("Yes", "No")),
+                            conditionalPanel(
+                            condition = "input.exampledata == 'Hauptfeld et al (ground water treatment plant)'",
                             ),
+                            conditionalPanel(
+                              condition = "input.exampledata == 'Deutschmann et al (Marine surface water)'",
+                            ),
+                            conditionalPanel(
+                              condition = "input.exampledata == 'Brenzinger et al (soil amendments)'",
+                            ),
+                            selectInput("agglomerate.custom",label = "Aggregate OTUs/ASVs at genus level?", choices = c("Yes", "No")),                            ),
                           conditionalPanel(
                             condition = "input.indata == 'MGnify'",
                             textInput("mgnify.acc",label = tags$span("Submit MGnify study accession",bsButton("mgInfo", label = "",icon = icon("info"),
@@ -63,13 +73,15 @@ tabsetPanel(
                           actionButton("load.btn", "Load data", icon = icon("fas fa-send", verify_fa = FALSE)),
                           tags$hr(),
                           h4("Network construction settings"),
+                            selectInput("cormethod","Correlation method", choices = c("Spearman","SparCC","Pearson","Kendall")),
+                            selectInput("type.norm",label = "Normalization",choices = c("CLR","TSS")),
                           sliderInput('cor.thr', label = "Correlation threshold", 0.5, min = 0.1, max = 0.99, step = 0.01),
                           numericInput("occ", label = "Occurrence threshold", value = 5, step = 1),
                           numericInput("max.ab", label = "Minimal abundance threshold (%)", value = 0.1, step = 0.05, max = 100),
                           h4("Aesthethic mapping"),
                           fluidRow(
                             column(width = 8,
-                                   selectInput("colors", "Color by", choices = c("Cluster - kmeans","Environmental parameter", "Taxonomy"))),
+                                   selectInput("colors", "Color by", choices = c("Cluster - kmeans","Environmental parameter", "Taxonomy"),selected = "Environmental parameter")),
                             column(width = 4,
                                    numericInput("set.seed", "Set seed", value = 1, min = 1, step = 1))
                           ),
@@ -109,8 +121,6 @@ tabsetPanel(
                                    numericInput("edge.alpha", "Edge Alpha", value = 1, min = 0.1, max = 1, step = 0.1)),
                             column(width = 3,
                                    selectInput("iso.network", "Plot isolated nodes", choices = c("Yes", "No"))),
-                            column(width = 4,
-                                   selectInput("cor.method","Correlation method", choices = c("spearman","pearson","kendall")))
                           )),
              mainPanel(girafeOutput("network", height = 1100, width = 1100) %>% withSpinner(type = 6),
                        htmlOutput("netstats"))
@@ -165,6 +175,50 @@ server <- function(input, output, session) {
     
   options(shiny.maxRequestSize=300*1024^2)
   
+
+  observeEvent(input$cormethod,{
+    if(input$cormethod == "SparCC"){
+      updateSelectInput(session,"type.norm",label = "Normalization", choices = c("SparCC"))
+    }
+    else if(input$cormethod != "SparCC" & input$normalize_custom == "Read counts"){
+      updateSelectInput(session, "type.norm",label = "Normalization",choices = c("CLR","TSS"),selected = c("CLR"))
+    }
+    else if(input$cormethod != "SparCC" & input$normalize_custom == "Relative abundances"){
+      updateSelectInput(session, "type.norm",label = "Normalization",choices = c("TSS"), selected = c("TSS"))
+    }
+  })
+  
+  observeEvent(input$indata,{
+    if(input$indata%in%c(".txt file","Phyloseq")){
+      updateSelectInput(session,"normalize_custom",label = "Input data format",choices = c("Read counts","Relative abundances"))
+    } else if(input$indata =="MGnify"){
+      updateSelectInput(session,"normalize_custom",label = "Input data format",choices = c("Read counts"))
+    } else if(input$indata == "Example data"){
+      if(input$exampledata == "Hauptfeld et al (ground water treatment plant)"){
+        updateSelectInput(session,"normalize_custom",label = "Input data format",choices = c("Read counts"))
+      }
+      if(input$exampledata == "Deutschmann et al (Marine surface water)"){
+        updateSelectInput(session,"normalize_custom",label = "Input data format",choices = c("Relative abundances"))
+      }
+      if(input$exampledata == "Brenzinger et al (soil amendments)"){
+        updateSelectInput(session,"normalize_custom",label = "Input data format",choices = c("Read counts"))
+      }
+    }
+  })
+  
+  observeEvent(input$exampledata,{
+    req(input$exampledata)
+    if(input$exampledata == "Hauptfeld et al (ground water treatment plant)"){
+      updateSelectInput(session,"normalize_custom","Input data format", choices = c("Read counts"))
+    }
+    if(input$exampledata == "Deutschmann et al (Marine surface water)"){
+      updateSelectInput(session,"normalize_custom","Input data format", choices = c("Relative abundances"))
+    }
+    if(input$exampledata == "Brenzinger et al (soil amendments)"){
+      updateSelectInput(session,"normalize_custom","Input data format", choices = c("Read counts"))
+    }
+  })
+
   # Load data ---------------------------------------------------------------
   
   # Convert MGnify analyses to phyloseq object
@@ -188,7 +242,6 @@ server <- function(input, output, session) {
       sam_phylo <- mgn_phylo@sam_data %>% sample_data()%>% data.frame()
       tax_phylo <- mgn_phylo@tax_table %>% tax_table()%>% data.frame()
       otu_phylo <- mgn_phylo@otu_table %>% otu_table() %>% data.frame()
-      otu_phylo <- normal(data = otu_phylo)
       return(list(sam = sam_phylo, tax = tax_phylo, otu = otu_phylo))
     }
   })
@@ -215,13 +268,14 @@ server <- function(input, output, session) {
       }
     }
     if(input$indata== "Example data"){
-      if(input$example.data=="Hauptfeld et al (ground water treatment plant)"){
+      if(input$exampledata=="Hauptfeld et al (ground water treatment plant)"){
         env <- read.delim(file.path(getwd(), "NW_data/Griftpark/fixed.grift.meta.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
       }
-      if(input$example.data=="Deutschmann et al (Marine surface water)"){
+      if(input$exampledata=="Deutschmann et al (Marine surface water)"){
         env <- read.delim(file.path(getwd(), "NW_data/TemporalNetworkBBMO/env.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
+        
       }
-      if(input$example.data=="Brenzinger et al (soil amendments)"){
+      if(input$exampledata=="Brenzinger et al (soil amendments)"){
         env <- read.delim(file.path(getwd(), "NW_data/Brenzinger/func.t65.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
       }
       env_num <- env %>%
@@ -277,7 +331,7 @@ server <- function(input, output, session) {
     meta <- env_data()
     env.vars <- sapply(meta,function(x) (length(unique(x))>1&(length(unique(x))<13|is.numeric(x))))
     env.vars <- colnames(meta)[env.vars]
-    if(input$indata == ".txt file"|input$indata =="example.data") {
+    if(input$indata == ".txt file"|input$indata =="exampledata") {
       updateSelectInput(session, "tax.network", label = "Select taxonomic rank", choices  = colnames(tax_data()$tax))
       updateSelectInput(session, "tax.summary", label = "Select taxonomic rank", choices  = colnames(tax_data()$tax))
       updateSelectInput(session, "env.summary", label = "Select environmental parameter", choices  = colnames(env_data()$env_num))
@@ -307,7 +361,6 @@ server <- function(input, output, session) {
       validate(
         need(isTRUE(all.equal(colnames(relab),rownames(env))), "column names OTU file don't match row names metadata file"),
         need(isTRUE(all.equal(rownames(relab),rownames(tax))), "Row names OTU file don't match row names taxonomy file"))
-      relab <- normal(data = relab)
       if(input$agglomerate.custom == "Yes"){
         tax <- read.delim(input$tax.file$datapath, header = T, sep = "\t",row.names = 1,check.names = F)
         tax[is.na(tax)] <- "Unknown"
@@ -320,19 +373,19 @@ server <- function(input, output, session) {
       return(relab)
     }
     if(input$indata== "Example data"){
-      if(input$example.data=="Hauptfeld et al (ground water treatment plant)"){
-        relab <- read.delim(file.path(getwd(), "NW_data/Griftpark/fixed.grift.otu.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
-        tax <- read.delim(file.path(getwd(), "NW_data/Griftpark/fixed.grift.tax.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
+      if(input$exampledata=="Hauptfeld et al (ground water treatment plant)"){
+        relab <- read.delim(file.path(getwd(), "NW_data/Griftpark/grift.otu.counts.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
+        tax <- read.delim(file.path(getwd(), "NW_data/Griftpark/grift.tax.counts.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
         env <- read.delim(file.path(getwd(), "NW_data/Griftpark/fixed.grift.meta.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
         
       }
-      if(input$example.data=="Deutschmann et al (Marine surface water)"){
+      if(input$exampledata=="Deutschmann et al (Marine surface water)"){
         relab <- read.delim(file.path(getwd(), "NW_data/TemporalNetworkBBMO/asv.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
         tax <- read.delim(file.path(getwd(), "NW_data/TemporalNetworkBBMO/tax.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
         env <- read.delim(file.path(getwd(), "NW_data/TemporalNetworkBBMO/env.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
         
       }
-      if(input$example.data=="Brenzinger et al (soil amendments)"){
+      if(input$exampledata=="Brenzinger et al (soil amendments)"){
         relab <- read.delim(file.path(getwd(), "NW_data/Brenzinger/otu.t65.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
         tax <- read.delim(file.path(getwd(), "NW_data/Brenzinger/tax.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
         env <- read.delim(file.path(getwd(), "NW_data/Brenzinger/func.t65.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
@@ -340,7 +393,6 @@ server <- function(input, output, session) {
   validate(
       need(isTRUE(all.equal(colnames(relab),rownames(env))), "column names OTU file don't match row names metadata file"),
       need(isTRUE(all.equal(rownames(relab),rownames(tax))), "Row names OTU file don't match row names taxonomy file"))
-  relab <- normal(data = relab)
   if(input$agglomerate.custom == "Yes"){
     tax[is.na(tax)] <- "Unknown"
     tax[tax == "NA"] <- "Unknown"
@@ -360,7 +412,6 @@ server <- function(input, output, session) {
       if(ncol(phy_otu)==nr.otu){
         phy_otu <- t(phy_otu)
       }
-      new_otu <- normal(data = phy_otu)
       if(input$agglomerate.phylo == "Yes"){
         tax <- phylo %>%
           tax_table() %>%
@@ -368,7 +419,7 @@ server <- function(input, output, session) {
         tax[is.na(tax)] <- "Unknown"
         tax[tax == "NA"] <- "Unknown"
         colnames(tax) <- toTitleCase(colnames(tax))
-        new_otu <- aggregate(new_otu,tax[,colnames(tax)!="Species"],sum)
+        new_otu <- aggregate(phy_otu,tax[,colnames(tax)!="Species"],sum)
         new_otu <- new_otu %>%
           select(where(is.numeric))
       }
@@ -402,7 +453,6 @@ server <- function(input, output, session) {
         colnames(tax) <- toTitleCase(colnames(tax))
         if(input$agglomerate.custom == "Yes"){
           relab <- read.delim(input$otu.file$datapath, header = T, sep = "\t",row.names = 1,check.names = F)
-          relab <- normal(data = relab)
           relab <- aggregate(relab,tax[,colnames(tax)!="Species"],sum)
           tax <- relab %>% select(where(is.character))
         } 
@@ -412,29 +462,28 @@ server <- function(input, output, session) {
       return(tax)
     }
     if(input$indata == "Example data"){
-      if(input$example.data=="Hauptfeld et al (ground water treatment plant)"){
-        tax <- read.delim(file.path(getwd(), "NW_data/Griftpark/fixed.grift.tax.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
+      if(input$exampledata=="Hauptfeld et al (ground water treatment plant)"){
+        tax <- read.delim(file.path(getwd(), "NW_data/Griftpark/grift.tax.counts.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
       }
-      if(input$example.data=="Deutschmann et al (Marine surface water)"){
+      if(input$exampledata=="Deutschmann et al (Marine surface water)"){
         tax <- read.delim(file.path(getwd(), "NW_data/TemporalNetworkBBMO/tax.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
       }
-      if(input$example.data=="Brenzinger et al (soil amendments)"){
+      if(input$exampledata=="Brenzinger et al (soil amendments)"){
         tax <- read.delim(file.path(getwd(), "NW_data/Brenzinger/tax.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
       }
       tax[is.na(tax)] <- "Unknown"
       tax[tax == "NA"] <- "Unknown"
       colnames(tax) <- toTitleCase(colnames(tax))
       if(input$agglomerate.custom == "Yes"){
-        if(input$example.data=="Hauptfeld et al (ground water treatment plant)"){
-          relab <- read.delim(file.path(getwd(), "NW_data/Griftpark/fixed.grift.otu.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
+        if(input$exampledata=="Hauptfeld et al (ground water treatment plant)"){
+          relab <- read.delim(file.path(getwd(), "NW_data/Griftpark/grift.otu.counts.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
         }
-        if(input$example.data=="Deutschmann et al (Marine surface water)"){
+        if(input$exampledata=="Deutschmann et al (Marine surface water)"){
           relab <- read.delim(file.path(getwd(), "NW_data/TemporalNetworkBBMO/asv.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
         }
-        if(input$example.data=="Brenzinger et al (soil amendments)"){
+        if(input$exampledata=="Brenzinger et al (soil amendments)"){
           relab <- read.delim(file.path(getwd(), "NW_data/Brenzinger/otu.t65.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
         }
-        relab <- normal(data = relab)
         relab <- aggregate(relab,tax[,colnames(tax)!="Species"],sum)
         tax <- relab %>% select(where(is.character))
       } 
@@ -458,8 +507,7 @@ server <- function(input, output, session) {
         if(ncol(phy_otu)==nr.otu){
           phy_otu <- t(phy_otu)
         }
-        new_otu <- normal(data = phy_otu)
-        new_otu <- aggregate(new_otu,phy_tax[,colnames(phy_tax)!="Species"],sum)
+        new_otu <- aggregate(phy_otu,phy_tax[,colnames(phy_tax)!="Species"],sum)
         phy_tax <- new_otu %>% select(where(is.character))
       } 
       updateSelectInput(session, "tax.network", label = "Select taxonomic rank", choices  = colnames(phy_tax), selected = colnames(phy_tax)[2])
@@ -482,6 +530,18 @@ server <- function(input, output, session) {
     }
   })
   
+  observeEvent(input$load.btn,{
+    if(input$normalize_custom == "Relative abundances"){
+      updateSelectInput(session,"cormethod","Correlation method", choices = c("Spearman","Pearson","Kendall"),selected = "Spearman")
+      updateSelectInput(session, "type.norm",label = "Normalization",choices = c("TSS"), selected = c("TSS"))
+    }
+    else if(input$normalize_custom == "Read counts"){
+      updateSelectInput(session,"cormethod","Correlation method", choices = c("Spearman","SparCC","Pearson","Kendall"), selected = "Spearman")
+      updateSelectInput(session, "type.norm",label = "Normalization",choices = c("CLR","TSS"),selected = c("CLR"))
+    }
+  })
+  
+  
   observeEvent(input$sub.variable, {
     if(input$sub.variable!="Full network"){
       cat.choice <- table(get(input$sub.variable,env_data()))
@@ -493,7 +553,6 @@ server <- function(input, output, session) {
     }
   })
   
-
     use.env <- reactive({
     sub.var <- isolate(input$sub.variable)
     select.env(env.tab = env_data(),sub.var=sub.var, sub.cat = input$sub.category)})
@@ -504,25 +563,33 @@ server <- function(input, output, session) {
     env.vars <- sapply(meta,function(x) (length(unique(x))>1&(length(unique(x))<13|is.numeric(x))))
     env.vars <- colnames(meta)[env.vars]
     env.vars <- env.vars[env.vars!=sub.var]
-    if(!input$env.network%in%env.vars){
+    if(!input$env.network%in%env.vars|sub.var=="Full network"){
       updateSelectInput(session, "env.network", label = "Select environmental parameter", choices  = env.vars,selected = env.vars[1])
     } else{
       updateSelectInput(session, "env.network", label = "Select environmental parameter", choices  = env.vars,selected = input$env.network)
     }
-      
   })
   
   use.otu <- reactive({
     sub.var <- isolate(input$sub.variable)
-    select.genera(relab.tab = otu_data() , mean.thr = 0,
+    normal(otu.table = otu_data(),type.norm = input$type.norm, mean.thr = 0,
                                      max.thr = input$max.ab, occ.thr = input$occ,
                                      env.mat = env_data(), sub.var = sub.var, sub.cat = input$sub.category)})
   
   use.tax <- reactive({
     sub.var <- isolate(input$sub.variable)
     select.tax(tax.tab = tax_data() , mean.thr = 0,
-                                     max.thr = input$max.ab, occ.thr = input$occ, relab.tab = otu_data(),
-                                  env.mat=env_data(),sub.var = sub.var,sub.cat = input$sub.category)})
+                                      max.thr = input$max.ab, occ.thr = input$occ, relab.tab = otu_data(),
+                                      env.mat=env_data(),sub.var = sub.var,sub.cat = input$sub.category)})
+  
+  otu.relabu <- reactive({
+    sub.var <- isolate(input$sub.variable)
+    get.relabu(otu.table = otu_data(), mean.thr = 0,
+               max.thr = input$max.ab, occ.thr = input$occ,
+               env.mat=env_data(),sub.var = sub.var,sub.cat = input$sub.category)})
+  
+  use.rowmeans <- reactive({
+    select.rm(relabu = otu.relabu())})
 
   
   env.col <- reactive({
@@ -551,16 +618,20 @@ server <- function(input, output, session) {
     }
   })
   
+  
   ## Correlation matrix ------------------------------------------------------
   cor.mat <- reactive({
-    create.cor(relab = use.otu(), type = input$cor.method)})
+    req((isolate(input$normalize_custom)=="Relative abundances" & input$cormethod!="SparCC" & !input$type.norm%in%c("SparCC","CLR"))|(isolate(input$normalize_custom)=="Read counts"))
+    req(input$cormethod)
+    cor_method <- input$cormethod
+    create.cor(relab = use.otu(), type = cor_method)})
   
   ## Calculate environmental correlation -------------------------------------
   env.cor <- reactive({
-  req(input$env.network)
+   req(input$env.network)
     input$occ
     input$max.ab
-    get.env.cor(meta = use.env(), use.env = input$env.network, matrix = isolate(use.otu()), plot.selection = input$colors)})
+    get.env.cor(meta = isolate(use.env()), use.env = input$env.network, matrix = use.otu(), plot.selection = input$colors,net.norm = input$cormethod)})
   
   ## Graph construction ------------------------------------------------------
   net.obj <- reactive({
@@ -570,14 +641,16 @@ server <- function(input, output, session) {
   clust.obj <- reactive({get.km(matrix = cor.mat(), no.of.clust = input$nclust, graph = net.obj(), method = input$colors)})
   
   ## Create taxonomy for plotting --------------------------------------------
-  tax.obj <- reactive({get.tax(tax_data(), input$tax.network, net.obj(), use.otu(), plot.selection = input$colors)})
+  tax.obj <- reactive({get.tax(tax_data(), input$tax.network, net.obj(), otu.relabu(), plot.selection = input$colors)})
   
   ## Convert to tidy graph ---------------------------------------------------
   net.tbl <- reactive({
-    tidy.net(net = net.obj(), matrix = isolate(use.otu()), clust = clust.obj(), env = env.cor(), tax = tax.obj())})
+    tidy.net(net = net.obj(), matrix = isolate(otu.relabu()), clust = clust.obj(), env = env.cor(), tax = tax.obj(), use.rowmeans())})
   
   ## Plot network ------------------------------------------------------------
   spe.plt <- reactive({
+    req(!is.null(env.cor())&!is.null(env.col())|!is.null(clust.obj()|!is.null(tax.obj())))
+    #req((class.var.env=="numeric"& var.type == "numeric")|(class.var.env=="character"&isolate(env.type) =="max")|is.null(var.env))
     plot.gg(
       tidy.net = net.tbl(),
       plot.selection = isolate(input$colors),
@@ -622,7 +695,7 @@ server <- function(input, output, session) {
       tax = tax_data(),
       rank = input$tax.summary,
       graph = net.obj(),
-      matrix = use.otu(),
+      matrix = otu.relabu(),
       plot.selection = "Taxonomy"
     )
   })
@@ -633,7 +706,8 @@ server <- function(input, output, session) {
       meta = use.env(),
       use.env = input$env.summary,
       matrix = use.otu(),
-      plot.selection = "Environmental parameter"
+      plot.selection = "Environmental parameter",
+      net.norm = input$cormethod
     )
   })
   
@@ -643,16 +717,17 @@ server <- function(input, output, session) {
     if(!is.null(env.cor.2())){
       tidy.net(
         net = net.obj(),
-        matrix = use.otu(),
+        matrix = otu.relabu(),
         clust = clust.obj(),
         env = env.cor.2(),
-        tax = tax.obj.2()
+        tax = tax.obj.2(),
+        rm_otu = use.rowmeans()
       )
     }
     else{
       tidy.net(
         net = net.obj(),
-        matrix = use.otu(),
+        matrix = otu.relabu(),
         clust = clust.obj(),
         env = NULL,
         tax = tax.obj.2()
@@ -673,7 +748,7 @@ server <- function(input, output, session) {
       env.type = env.col(),
       plot.selection = input$colors,
       env.main = env.cor(),
-      use.relab = use.otu(),
+      use.relab = otu.relabu(),
       use.tax = use.tax()
     )
   })

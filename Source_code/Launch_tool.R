@@ -21,11 +21,9 @@ library(ggiraph)
 library(htmlwidgets)
 library(reshape2)
 library(htmltools)
+library(SpiecEasi)
 
 runApp()
-
-
-
 
 
 
