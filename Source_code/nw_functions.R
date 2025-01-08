@@ -4,12 +4,9 @@
 # Normalization function --------------------------------------------------
 normal <- function(otu.table,type.norm,mean.thr = 0, max.thr = 0, occ.thr = 0,env.mat,sub.var,sub.cat) {
   ### Get the right samples
-  print(sub.var)
-  print(sub.cat)
   if(sub.var!= "Full network"&sub.cat!=""){
     if(sub.cat%in%unique(get(sub.var,env.mat))){
       use_table <- otu.table[,which(get(sub.var,env.mat)==sub.cat)]
-      print("hallo")
     } else{
       use_table <- otu.table
     }
