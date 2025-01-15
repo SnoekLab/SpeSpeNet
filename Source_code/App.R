@@ -75,6 +75,7 @@ tabsetPanel(
                           h4("Network construction settings"),
                             selectInput("cormethod","Correlation method", choices = c("Spearman","SparCC","Pearson","Kendall")),
                             selectInput("type.norm",label = "Normalization",choices = c("CLR","TSS")),
+                            selectInput("spars",label = "Pseudo-counts",choices = c("Random","Constant")),
                           sliderInput('cor.thr', label = "Correlation threshold", 0.5, min = 0.1, max = 0.99, step = 0.01),
                           numericInput("occ", label = "Occurrence threshold", value = 5, step = 1),
                           numericInput("max.ab", label = "Minimal abundance threshold (%)", value = 0.1, step = 0.05, max = 100),
@@ -188,6 +189,15 @@ server <- function(input, output, session) {
     }
   })
   
+  observeEvent(input$type.norm,{
+    if(input$type.norm == "SparCC"|input$type.norm =="TSS"){
+      updateSelectInput(session,"spars",label = "Pseudo-counts",choices = c("Random","No pseudo-counts"))
+    }
+    else if(input$type.norm == "CLR"){
+      updateSelectInput(session,"spars",label = "Pseudo-counts",choices = c("Random","Constant"))
+    }
+  })
+  
   observeEvent(input$indata,{
     if(input$indata%in%c(".txt file","Phyloseq")){
       updateSelectInput(session,"normalize_custom",label = "Input data format",choices = c("Read counts","Relative abundances"))
@@ -207,7 +217,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$exampledata,{
-    req(input$exampledata)
+    req(input$indata == "Example data")
     if(input$exampledata == "Hauptfeld et al (ground water treatment plant)"){
       updateSelectInput(session,"normalize_custom","Input data format", choices = c("Read counts"))
     }
@@ -276,7 +286,7 @@ server <- function(input, output, session) {
         
       }
       if(input$exampledata=="Brenzinger et al (soil amendments)"){
-        env <- read.delim(file.path(getwd(), "NW_data/Brenzinger/func.t65.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
+        env <- read.delim(file.path(getwd(), "NW_data/Brenzinger/meta.new.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
       }
       env_num <- env %>%
         select(where(is.numeric))
@@ -386,9 +396,9 @@ server <- function(input, output, session) {
         
       }
       if(input$exampledata=="Brenzinger et al (soil amendments)"){
-        relab <- read.delim(file.path(getwd(), "NW_data/Brenzinger/otu.t65.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
-        tax <- read.delim(file.path(getwd(), "NW_data/Brenzinger/tax.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
-        env <- read.delim(file.path(getwd(), "NW_data/Brenzinger/func.t65.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
+        relab <- read.delim(file.path(getwd(), "NW_data/Brenzinger/otu.new.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
+        tax <- read.delim(file.path(getwd(), "NW_data/Brenzinger/tax.new.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
+        env <- read.delim(file.path(getwd(), "NW_data/Brenzinger/meta.new.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
       }
   validate(
       need(isTRUE(all.equal(colnames(relab),rownames(env))), "column names OTU file don't match row names metadata file"),
@@ -469,7 +479,7 @@ server <- function(input, output, session) {
         tax <- read.delim(file.path(getwd(), "NW_data/TemporalNetworkBBMO/tax.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
       }
       if(input$exampledata=="Brenzinger et al (soil amendments)"){
-        tax <- read.delim(file.path(getwd(), "NW_data/Brenzinger/tax.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
+        tax <- read.delim(file.path(getwd(), "NW_data/Brenzinger/tax.new.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
       }
       tax[is.na(tax)] <- "Unknown"
       tax[tax == "NA"] <- "Unknown"
@@ -482,7 +492,7 @@ server <- function(input, output, session) {
           relab <- read.delim(file.path(getwd(), "NW_data/TemporalNetworkBBMO/asv.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
         }
         if(input$exampledata=="Brenzinger et al (soil amendments)"){
-          relab <- read.delim(file.path(getwd(), "NW_data/Brenzinger/otu.t65.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
+          relab <- read.delim(file.path(getwd(), "NW_data/Brenzinger/otu.new.txt"), header = T, sep = "\t",row.names = 1,check.names = F)
         }
         relab <- aggregate(relab,tax[,colnames(tax)!="Species"],sum)
         tax <- relab %>% select(where(is.character))
@@ -574,7 +584,8 @@ server <- function(input, output, session) {
     sub.var <- isolate(input$sub.variable)
     normal(otu.table = otu_data(),type.norm = input$type.norm, mean.thr = 0,
                                      max.thr = input$max.ab, occ.thr = input$occ,
-                                     env.mat = env_data(), sub.var = sub.var, sub.cat = input$sub.category)})
+                                     env.mat = env_data(), sub.var = sub.var, sub.cat = input$sub.category,
+                                     spars = input$spars)})
   
   use.tax <- reactive({
     sub.var <- isolate(input$sub.variable)

@@ -2,7 +2,7 @@
 
 
 # Normalization function --------------------------------------------------
-normal <- function(otu.table,type.norm,mean.thr = 0, max.thr = 0, occ.thr = 0,env.mat,sub.var,sub.cat) {
+normal <- function(otu.table,type.norm,mean.thr = 0, max.thr = 0, occ.thr = 0,env.mat,sub.var,sub.cat,spars) {
   ### Get the right samples
   if(sub.var!= "Full network"&sub.cat!=""){
     if(sub.cat%in%unique(get(sub.var,env.mat))){
@@ -23,7 +23,11 @@ normal <- function(otu.table,type.norm,mean.thr = 0, max.thr = 0, occ.thr = 0,en
     if(type.norm =="CLR"){
       use_table <- use_table[mmo$mean >= mean.thr & mmo$max >= max.thr & mmo$occ >= occ.thr,]
       set.seed(333)
+      if(spars == "Random"){
       use_table[use_table==0] <- runif(sum(use_table==0),0.1,1)
+      } else if(spars == "Constant"){
+        use_table[use_table==0] <- 1
+      }
       row.name <- rownames(use_table)
       normal_otu <- apply(use_table,2,function(x) log(x/mean(x)))
       rownames(normal_otu) <- row.name
@@ -31,13 +35,17 @@ normal <- function(otu.table,type.norm,mean.thr = 0, max.thr = 0, occ.thr = 0,en
     } else if(type.norm == "TSS"){
       normal_otu <- use_relab[mmo$mean >= mean.thr & mmo$max >= max.thr & mmo$occ >= occ.thr,]
       set.seed(333)
-      normal_otu[normal_otu==0] <- runif(sum(normal_otu==0),0.1*min(normal_otu),min(normal_otu))
+      if(spars == "Random"){
+        normal_otu[normal_otu==0] <- runif(sum(normal_otu==0),0.1*min(normal_otu),min(normal_otu))
+      }
       normal_otu <- sweep(normal_otu, 2, colSums(normal_otu), FUN="/") * 100
     } else if(type.norm == "SparCC"){
     normal_otu <- use_table[mmo$mean >= mean.thr & mmo$max >= max.thr & mmo$occ >= occ.thr,]
     set.seed(333)
-    normal_otu[normal_otu==0] <- runif(sum(normal_otu==0),0.1,1)
+    if(spars == "Random"){
+      normal_otu[normal_otu==0] <- runif(sum(normal_otu==0),0.1,1)
     }
+  }
   return(normal_otu)
 }
 
