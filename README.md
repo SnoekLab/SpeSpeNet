@@ -23,11 +23,13 @@ Find the SpeSpeNet tool here: https://tbb.bio.uu.nl/SpeSpeNet.
 
 ## Description files on this github:
 
-Source code: map containing three scripts. App.R contains the code for the ui and server of SpeSpeNet. nw_functions.R contains functions sourced by app.R. Launch_tool.R is the script that loads in the dependencies and launches the desktop version of the tool. 
-
 Example_data: Map containing three data sets that are in SpeSpeNet compatible format and can be used to try SpeSpeNet. The three datasets correspond to the three case studies presented in the paper (Hauptfeld et al, 2022; Deutschmann et al, 2023; Brenzinger et al, 2021).
 
 Figure_scripts: Map with the scripts to make the figures of the SpeSpeNet paper. These scripts are a linearized version of the SpeSpeNet source code.
+
+Plot_tidygraph: SpeSpeNet networks can be downloaded from the webtool as .rds compressed tidygraph objects. This folder contains a script showing how to make customized versions of the network visualizations in R using downloaded tidygraph objects. The scripts shows how to perfect and personalize images as in the SpeSpeNet paper. The code uses several example tidygraph objects which are also provided in this folder.
+
+Source code: map containing three scripts. App.R contains the code for the ui and server of SpeSpeNet. nw_functions.R contains functions sourced by app.R. Launch_tool.R is the script that loads in the dependencies and launches the desktop version of the tool. 
 
 SpeSpeNet_manual.docx: In depth description of how to use SpeSpeNet.  
 
